@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "C:\Users\stemw\Downloads\FEM_python\crane_pynite.py", line 186, in <module>
+    model.analyze(check_statics=True)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\stemw\Downloads\FEM_python\.venv\Lib\site-packages\Pynite\FEModel3D.py", line 2302, in analyze
+    FER1, FER2 = Analysis._partition(self, self.FER(combo.name), D1_indices, D2_indices)
+                                           ~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\stemw\Downloads\FEM_python\.venv\Lib\site-packages\Pynite\FEModel3D.py", line 1896, in FER
+    member_FER = member.FER(combo_name)
+  File "C:\Users\stemw\Downloads\FEM_python\.venv\Lib\site-packages\Pynite\Member3D.py", line 733, in FER
+    return matmul(inv(self.T()), self.fer(combo_name))
+                      ~~~~~~^^
+  File "C:\Users\stemw\Downloads\FEM_python\.venv\Lib\site-packages\Pynite\Member3D.py", line 593, in T
+    x = [(Xj - Xi)/L, (Yj - Yi)/L, (Zj - Zi)/L]
+         ~~~~~~~~~^~
+ZeroDivisionError: float division by zero
