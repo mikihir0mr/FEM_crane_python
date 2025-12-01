@@ -6,4 +6,8 @@ services:
     envVars:
       - key: PORT
         value: 10000
+      - key: AUTH_USER
+        value: 049b25
+      - key: AUTH_PASS
+        value: CsP_password_2025
     region: oregon

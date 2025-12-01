@@ -1,12 +1,30 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import os
+import secrets
 from crane_calc import calculate_crane
 
 app = FastAPI()
+security = HTTPBasic()
+
+# Environment variables for Basic Auth
+AUTH_USER = os.getenv("AUTH_USER", "admin")
+AUTH_PASS = os.getenv("AUTH_PASS", "password")
+
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, AUTH_USER)
+    correct_password = secrets.compare_digest(credentials.password, AUTH_PASS)
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,7 +46,7 @@ class CraneParams(BaseModel):
     arm_angle: float = 180.0
     mass_tip: float = 50.0
 
-@app.post("/calculate")
+@app.post("/calculate", dependencies=[Depends(get_current_username)])
 async def calculate(params: CraneParams):
     try:
         results = calculate_crane(params.dict())
@@ -41,7 +59,7 @@ frontend_dist = os.path.join(os.path.dirname(__file__), "../frontend/dist")
 if os.path.exists(frontend_dist):
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
     
-    @app.get("/{full_path:path}")
+    @app.get("/{full_path:path}", dependencies=[Depends(get_current_username)])
     async def serve_frontend(full_path: str):
         # If API path, let it pass (though /calculate is POST, so this GET won't catch it)
         # But we need to be careful not to shadow API routes if we had GET APIs.
