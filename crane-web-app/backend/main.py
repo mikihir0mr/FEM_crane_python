@@ -47,7 +47,7 @@ class CraneParams(BaseModel):
     mass_tip: float = 50.0
     yield_stress: float = 235.0
 
-@app.post("/calculate", dependencies=[Depends(get_current_username)])
+@app.post("/calculate")
 async def calculate(params: CraneParams):
     try:
         results = calculate_crane(params.dict())
@@ -60,7 +60,7 @@ frontend_dist = os.path.join(os.path.dirname(__file__), "../frontend/dist")
 if os.path.exists(frontend_dist):
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
     
-    @app.get("/{full_path:path}", dependencies=[Depends(get_current_username)])
+    @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         # If API path, let it pass (though /calculate is POST, so this GET won't catch it)
         # But we need to be careful not to shadow API routes if we had GET APIs.

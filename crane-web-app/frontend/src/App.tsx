@@ -1,7 +1,7 @@
 import { useState, Suspense, useMemo, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment } from '@react-three/drei';
-import { Box, Slider, Typography, Paper, Stack, CircularProgress, ToggleButton, ToggleButtonGroup, useMediaQuery, useTheme, IconButton, Collapse, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { Box, Slider, Typography, Paper, Stack, CircularProgress, ToggleButton, ToggleButtonGroup, useMediaQuery, useTheme, IconButton, Select, MenuItem, FormControl, InputLabel, Button } from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import axios from 'axios';
 import * as THREE from 'three';
@@ -200,7 +200,6 @@ export default function App() {
       setParams(prev => ({ ...prev, yield_stress: 700.0, t_wall: 1.8 }));
     }
   };
-
   const [results, setResults] = useState<Results | null>(null);
   const [loading, setLoading] = useState(false);
   const [deformationScale, setDeformationScale] = useState(1);
@@ -216,12 +215,7 @@ export default function App() {
     try {
       // Use relative path for deployment. 
       // The backend will serve the frontend, so /calculate will hit the same origin.
-      const res = await axios.post('/calculate', params, {
-        auth: {
-          username: 'admin',
-          password: 'password'
-        }
-      });
+      const res = await axios.post('/calculate', params);
       setResults(res.data);
     } catch (err) {
       console.error(err);
@@ -245,10 +239,10 @@ export default function App() {
   };
 
   return (
-    <div style={isMobile ? { position: 'relative', height: '100vh', width: '100vw', overflow: 'hidden' } : { display: 'flex', height: '100vh', width: '100vw' }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
 
-      {/* 3D Viewer */}
-      <div style={isMobile ? { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' } : { flex: 1 }}>
+      {/* 3D Viewer - Takes available space */}
+      <div style={{ flex: 1, position: 'relative' }}>
         <Canvas camera={{ position: [2000, 2000, 2000], fov: 50, near: 1, far: 10000 }}>
           <color attach="background" args={['#f0f0f0']} />
           <ambientLight intensity={0.5} />
@@ -266,113 +260,125 @@ export default function App() {
             />
           </Suspense>
         </Canvas>
+
+        {/* Mobile Overlay Toggle Button */}
+        {isMobile && (
+          <Box position="absolute" bottom={0} left={0} right={0} zIndex={1000} bgcolor="rgba(255,255,255,0.9)">
+            <Box
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              p={1}
+              onClick={() => setMobileOpen(!mobileOpen)}
+              sx={{ cursor: 'pointer', borderBottom: 1, borderColor: 'divider' }}
+            >
+              <IconButton size="small" onClick={(e) => { e.stopPropagation(); setMobileOpen(!mobileOpen); }}>
+                {mobileOpen ? <ExpandMore /> : <ExpandLess />}
+              </IconButton>
+              <Typography variant="subtitle2" color="textSecondary">
+                {mobileOpen ? '設定を閉じる' : '設定を開く'}
+              </Typography>
+            </Box>
+          </Box>
+        )}
       </div>
 
-      {/* Control Panel */}
+      {/* Control Panel - Sidebar for Desktop / Overlay for Mobile */}
       <Paper
         elevation={3}
         style={isMobile ? {
           position: 'absolute',
-          bottom: 0,
+          bottom: mobileOpen ? 40 : -1000, // Hide when closed, show above toggle when open
           left: 0,
           right: 0,
-          maxHeight: '80vh',
-          zIndex: 100,
+          maxHeight: '60vh',
+          zIndex: 999,
           borderTopLeftRadius: 16,
           borderTopRightRadius: 16,
-          display: 'flex',
+          display: mobileOpen ? 'flex' : 'none', // Truly hide when closed on mobile
           flexDirection: 'column',
           backgroundColor: 'rgba(255, 255, 255, 0.95)'
         } : {
           width: 350,
-          padding: 20,
-          overflowY: 'auto',
-          zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#fff',
+          borderLeft: '1px solid #ccc',
           height: '100%',
-          boxSizing: 'border-box'
+          zIndex: 10
         }}
       >
-        {isMobile && (
-          <Box
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            p={1}
-            onClick={() => setMobileOpen(!mobileOpen)}
-            sx={{ cursor: 'pointer', borderBottom: mobileOpen ? 1 : 0, borderColor: 'divider' }}
-          >
-            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setMobileOpen(!mobileOpen); }}>
-              {mobileOpen ? <ExpandMore /> : <ExpandLess />}
-            </IconButton>
-            <Typography variant="subtitle2" color="textSecondary">
-              {mobileOpen ? '設定を閉じる' : '設定を開く'}
-            </Typography>
-          </Box>
-        )}
+        <Box p={2} sx={{ overflowY: 'auto', height: '100%' }}>
+          <Typography variant="h5" gutterBottom>単管クレーンシミュレーター</Typography>
 
-        <Collapse in={!isMobile || mobileOpen} timeout="auto" unmountOnExit={false}>
-          <Box p={isMobile ? 2 : 0} pt={isMobile ? 1 : 0} sx={{ overflowY: 'auto', maxHeight: isMobile ? '60vh' : 'none' }}>
-            <Typography variant="h5" gutterBottom sx={{ display: isMobile ? 'none' : 'block' }}>単管クレーンシミュレーター</Typography>
+          <Stack spacing={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>単管パイプ種類</InputLabel>
+              <Select
+                value={pipeType}
+                label="単管パイプ種類"
+                onChange={handlePipeChange}
+              >
+                <MenuItem value="STK400">STK400 (標準, t=2.4mm, σy=235)</MenuItem>
+                <MenuItem value="STK500">STK500 (高張力, t=2.4mm, σy=355)</MenuItem>
+                <MenuItem value="SuperLight700">SuperLight700 (軽量, t=1.8mm, σy=700)</MenuItem>
+              </Select>
+            </FormControl>
 
-            <Stack spacing={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>単管パイプ種類</InputLabel>
-                <Select
-                  value={pipeType}
-                  label="単管パイプ種類"
-                  onChange={handlePipeChange}
-                >
-                  <MenuItem value="STK400">STK400 (標準, t=2.4mm, σy=235)</MenuItem>
-                  <MenuItem value="STK500">STK500 (高張力, t=2.4mm, σy=355)</MenuItem>
-                  <MenuItem value="SuperLight700">SuperLight700 (軽量, t=1.8mm, σy=700)</MenuItem>
-                </Select>
-              </FormControl>
+            <Box>
+              <Typography>台座 長さ: {params.base_len} mm</Typography>
+              <Slider value={params.base_len} min={500} max={2000} onChange={handleChange('base_len')} />
+            </Box>
+            <Box>
+              <Typography>台座 幅: {params.base_wid} mm</Typography>
+              <Slider value={params.base_wid} min={300} max={1500} onChange={handleChange('base_wid')} />
+            </Box>
+            <Box>
+              <Typography>三脚取付高さ: {params.tripod_attach_height} mm</Typography>
+              <Slider value={params.tripod_attach_height} min={500} max={params.arm_pivot_height} onChange={handleChange('tripod_attach_height')} />
+            </Box>
+            <Box>
+              <Typography>ブレース取付高さ: {params.brace_mast_height} mm</Typography>
+              <Slider value={params.brace_mast_height} min={300} max={params.tripod_attach_height} onChange={handleChange('brace_mast_height')} />
+            </Box>
+            <Box>
+              <Typography>アーム長さ: {params.arm_len} mm</Typography>
+              <Slider value={params.arm_len} min={500} max={2000} onChange={handleChange('arm_len')} />
+            </Box>
+            <Box>
+              <Typography>アーム角度: {params.arm_angle} deg</Typography>
+              <Slider value={params.arm_angle} min={0} max={360} onChange={handleChange('arm_angle')} />
+            </Box>
+            <Box>
+              <Typography>先端荷重: {params.mass_tip} kg</Typography>
+              <Slider value={params.mass_tip} min={0} max={200} onChange={handleChange('mass_tip')} />
+            </Box>
+            <Box>
+              <Typography>アーム取付高さ: {params.arm_pivot_height} mm</Typography>
+              <Slider value={params.arm_pivot_height} min={1000} max={3000} onChange={handleChange('arm_pivot_height')} />
+            </Box>
 
-              <Box>
-                <Typography>台座 長さ: {params.base_len} mm</Typography>
-                <Slider value={params.base_len} min={500} max={2000} onChange={handleChange('base_len')} />
-              </Box>
-              <Box>
-                <Typography>台座 幅: {params.base_wid} mm</Typography>
-                <Slider value={params.base_wid} min={300} max={1500} onChange={handleChange('base_wid')} />
-              </Box>
-              <Box>
-                <Typography>三脚取付高さ: {params.tripod_attach_height} mm</Typography>
-                <Slider value={params.tripod_attach_height} min={500} max={params.arm_pivot_height} onChange={handleChange('tripod_attach_height')} />
-              </Box>
-              <Box>
-                <Typography>ブレース取付高さ: {params.brace_mast_height} mm</Typography>
-                <Slider value={params.brace_mast_height} min={300} max={params.tripod_attach_height} onChange={handleChange('brace_mast_height')} />
-              </Box>
-              <Box>
-                <Typography>アーム長さ: {params.arm_len} mm</Typography>
-                <Slider value={params.arm_len} min={500} max={2000} onChange={handleChange('arm_len')} />
-              </Box>
-              <Box>
-                <Typography>アーム角度: {params.arm_angle} deg</Typography>
-                <Slider value={params.arm_angle} min={0} max={360} onChange={handleChange('arm_angle')} />
-              </Box>
-              <Box>
-                <Typography>先端荷重: {params.mass_tip} kg</Typography>
-                <Slider value={params.mass_tip} min={0} max={200} onChange={handleChange('mass_tip')} />
-              </Box>
-              <Box>
-                <Typography>アーム取付高さ: {params.arm_pivot_height} mm</Typography>
-                <Slider value={params.arm_pivot_height} min={1000} max={3000} onChange={handleChange('arm_pivot_height')} />
-              </Box>
-
-              {/* Auto-calculation enabled, button removed */}
-              {loading && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleCalculate}
+              disabled={loading}
+              fullWidth
+            >
+              FEM実行 (解析)
+            </Button>
+            {
+              loading && (
                 <Box display="flex" justifyContent="center" p={1}>
                   <CircularProgress size={24} />
                   <Typography variant="caption" ml={1}>計算中...</Typography>
                 </Box>
-              )}
+              )
+            }
 
-              {results && (
+            {
+              results && (
                 <>
-
-
                   <Box mt={2} borderTop={1} borderColor="divider" pt={2}>
                     <Typography variant="subtitle1" gutterBottom>可視化設定</Typography>
 
@@ -403,7 +409,6 @@ export default function App() {
                     <Typography>先端たわみ (DZ): {results.tip_displacement.dz.toFixed(3)} mm</Typography>
                     <Typography>最大応力: {results.max_stress.toFixed(1)} N/mm²</Typography>
 
-                    {/* Failure Warning inside Results */}
                     {results.failures && results.failures.length > 0 ? (
                       <Box mt={1} p={1} bgcolor="#ffebee" border={1} borderColor="error.main" borderRadius={1}>
                         <Typography variant="subtitle2" color="error" fontWeight="bold">
@@ -426,10 +431,10 @@ export default function App() {
                     <Typography>DZ: {results.node_displacements.M_top.dz.toFixed(3)}</Typography>
                   </Box>
                 </>
-              )}
-            </Stack>
-          </Box>
-        </Collapse>
+              )
+            }
+          </Stack >
+        </Box>
       </Paper>
     </div>
   );
